@@ -11,6 +11,7 @@ import time
 
 os.makedirs("images", exist_ok=True)
 
+
 # Weights to use when blending depth/rgb image (should equal 1.0)
 rgbWeight = 0.4
 depthWeight = 0.6
@@ -98,29 +99,62 @@ if alpha is not None:
 with device:
     device.startPipeline(pipeline)
 
-    # Get the output queues (blocking queues)
-    rgbQueue = device.getOutputQueue(name="rgb", maxSize=4, blocking=True)
-    dispQueue = device.getOutputQueue(name="disp", maxSize=4, blocking=True)
+    frameRgb = None
+    frameDisp = None
 
-    time.sleep(1)
+    # Configure windows; trackbar adjusts blending ratio of rgb/depth
+    rgbWindowName = "rgb"
+    depthWindowName = "depth"
+    blendedWindowName = "rgb-depth"
+    cv2.namedWindow(rgbWindowName)
+    cv2.namedWindow(depthWindowName)
+    cv2.namedWindow(blendedWindowName)
+    cv2.createTrackbar('RGB Weight %', blendedWindowName, int(rgbWeight*100), 100, updateBlendWeights)
 
-    for i in range(4):
-        # Wait for RGB and disparity frames
-        rgbPacket = rgbQueue.get()  # Blocking call
-        dispPacket = dispQueue.get()  # Blocking call
+    while True:
+        latestPacket = {}
+        latestPacket["rgb"] = None
+        latestPacket["disp"] = None
 
-        frameRgb = rgbPacket.getCvFrame()
-        frameDisp = dispPacket.getFrame()
+        queueEvents = device.getQueueEvents(("rgb", "disp"))
+        for queueName in queueEvents:
+            packets = device.getOutputQueue(queueName).tryGetAll()
+            if len(packets) > 0:
+                latestPacket[queueName] = packets[-1]
 
-        maxDisparity = stereo.initialConfig.getMaxDisparity()
-        frameDisp = (frameDisp * 255. / maxDisparity).astype(np.uint8)
-        frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
-        frameDisp = np.ascontiguousarray(frameDisp)
+        if latestPacket["rgb"] is not None:
+            frameRgb = latestPacket["rgb"].getCvFrame()
+            cv2.imshow(rgbWindowName, frameRgb)
 
-        # Save images
-        filenameRGB = f"images/rgb_image_{i}.png"
-        filenameDepth = f"images/depth_image_{i}.png"
-        cv2.imwrite(filenameRGB, frameRgb)
-        print(f"Saved {filenameRGB}")
-        cv2.imwrite(filenameDepth, frameDisp)
-        print(f"Saved {filenameDepth}")
+        if latestPacket["disp"] is not None:
+            frameDisp = latestPacket["disp"].getFrame()
+            maxDisparity = stereo.initialConfig.getMaxDisparity()
+            # Optional, extend range 0..95 -> 0..255, for a better visualisation
+            if 1: frameDisp = (frameDisp * 255. / maxDisparity).astype(np.uint8)
+            # Optional, apply false colorization
+            if 1: frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
+            frameDisp = np.ascontiguousarray(frameDisp)
+            cv2.imshow(depthWindowName, frameDisp)
+
+        # Blend when both received
+        if frameRgb is not None and frameDisp is not None:
+            # Need to have both frames in BGR format before blending
+            if len(frameDisp.shape) < 3:
+                frameDisp = cv2.cvtColor(frameDisp, cv2.COLOR_GRAY2BGR)
+            blended = cv2.addWeighted(frameRgb, rgbWeight, frameDisp, depthWeight, 0)
+            cv2.imshow(blendedWindowName, blended)
+
+
+        if cv2.waitKey(1) == ord('s'):
+            filenameRGB = f"images/rgb_image.png"
+            filenameDisparityHeatmap = f"images/depth_image.png"
+            cv2.imwrite(filenameRGB, frameRgb)
+            print(f"Saved {filenameRGB}")
+            cv2.imwrite(filenameDisparityHeatmap, frameDisp)
+            print(f"Saved {filenameDisparityHeatmap}")
+            break
+        
+        if cv2.waitKey(1) == ord('q'):
+            break
+
+

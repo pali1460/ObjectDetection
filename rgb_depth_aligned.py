@@ -136,8 +136,18 @@ with device:
                 frameDisp = cv2.cvtColor(frameDisp, cv2.COLOR_GRAY2BGR)
             blended = cv2.addWeighted(frameRgb, rgbWeight, frameDisp, depthWeight, 0)
             cv2.imshow(blendedWindowName, blended)
-            frameRgb = None
-            frameDisp = None
 
+
+        if cv2.waitKey(1) == ord('s'):
+            filenameRGB = f"images/rgb_image.png"
+            filenameDisparityHeatmap = f"images/disparity_heatmap.png"
+            cv2.imwrite(filenameRGB, frameRgb)
+            print(f"Saved {filenameRGB}")
+            cv2.imwrite(filenameDisparityHeatmap, frameDisp)
+            print(f"Saved {filenameDisparityHeatmap}")
+            break
+        
         if cv2.waitKey(1) == ord('q'):
             break
+
+

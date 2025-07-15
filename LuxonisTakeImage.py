@@ -95,6 +95,9 @@ if alpha is not None:
     camRgb.setCalibrationAlpha(alpha)
     stereo.setAlphaScaling(alpha)
 
+savedDepth = False
+savedRGB = False
+
 # Connect to device and start pipeline
 with device:
     device.startPipeline(pipeline)
@@ -136,6 +139,8 @@ with device:
             frameDisp = np.ascontiguousarray(frameDisp)
             cv2.imshow(depthWindowName, frameDisp)
 
+        time.sleep(2)
+
         # Blend when both received
         if frameRgb is not None and frameDisp is not None:
             # Need to have both frames in BGR format before blending
@@ -144,8 +149,22 @@ with device:
             blended = cv2.addWeighted(frameRgb, rgbWeight, frameDisp, depthWeight, 0)
             cv2.imshow(blendedWindowName, blended)
 
+        if frameDisp is not None:
+            filenameDisparityHeatmap = f"images/depth_image.png"
+            cv2.imwrite(filenameDisparityHeatmap, frameDisp)
+            print(f"Saved {filenameDisparityHeatmap}")
+            savedDepth = True
 
-        if cv2.waitKey(1) == ord('s'):
+        if frameRgb is not None and savedDepth:
+            filenameRGB = f"images/rgb_image.png"
+            cv2.imwrite(filenameRGB, frameRgb)
+            print(f"Saved {filenameRGB}")
+            savedRGB = True
+
+        if savedRGB and savedDepth:
+            break
+        
+        if cv2.waitKey(1) == ord('q'):
             filenameRGB = f"images/rgb_image.png"
             filenameDisparityHeatmap = f"images/depth_image.png"
             cv2.imwrite(filenameRGB, frameRgb)
@@ -153,8 +172,4 @@ with device:
             cv2.imwrite(filenameDisparityHeatmap, frameDisp)
             print(f"Saved {filenameDisparityHeatmap}")
             break
-        
-        if cv2.waitKey(1) == ord('q'):
-            break
-
 

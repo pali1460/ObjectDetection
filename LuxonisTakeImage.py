@@ -7,13 +7,30 @@ import numpy as np
 import depthai as dai
 import argparse
 import os
+import time
 
 os.makedirs("images", exist_ok=True)
+
+# Weights to use when blending depth/rgb image (should equal 1.0)
+rgbWeight = 0.4
+depthWeight = 0.6
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-alpha', type=float, default=None, help="Alpha scaling parameter to increase float. [0,1] valid interval.")
 args = parser.parse_args()
 alpha = args.alpha
+
+def updateBlendWeights(percent_rgb):
+    """
+    Update the rgb and depth weights used to blend depth/rgb image
+
+    @param[in] percent_rgb The rgb weight expressed as a percentage (0..100)
+    """
+    global depthWeight
+    global rgbWeight
+    rgbWeight = float(percent_rgb)/100.0
+    depthWeight = 1.0 - rgbWeight
+
 
 fps = 30
 # The disparity is computed at this resolution, then upscaled to RGB resolution
@@ -85,6 +102,8 @@ with device:
     rgbQueue = device.getOutputQueue(name="rgb", maxSize=4, blocking=True)
     dispQueue = device.getOutputQueue(name="disp", maxSize=4, blocking=True)
 
+    time.sleep(1)
+
     for i in range(4):
         # Wait for RGB and disparity frames
         rgbPacket = rgbQueue.get()  # Blocking call
@@ -105,46 +124,3 @@ with device:
         print(f"Saved {filenameRGB}")
         cv2.imwrite(filenameDepth, frameDisp)
         print(f"Saved {filenameDepth}")
-
-'''
-# Connect to device and start pipeline
-with device:
-    device.startPipeline(pipeline)
-
-    frameRgb = None
-    frameDisp = None
-
-    for i in range (4):
-        latestPacket = {}
-        latestPacket["rgb"] = None
-        latestPacket["disp"] = None
-
-        queueEvents = device.getQueueEvents(("rgb", "disp"))
-        for queueName in queueEvents:
-            packets = device.getOutputQueue(queueName).tryGetAll()
-            if len(packets) > 0:
-                latestPacket[queueName] = packets[-1]
-
-        if latestPacket["rgb"] is not None:
-            frameRgb = latestPacket["rgb"].getCvFrame()
-
-        if latestPacket["disp"] is not None:
-            frameDisp = latestPacket["disp"].getFrame()
-            maxDisparity = stereo.initialConfig.getMaxDisparity()
-            # Optional, extend range 0..95 -> 0..255, for a better visualisation
-            if 1: frameDisp = (frameDisp * 255. / maxDisparity).astype(np.uint8)
-            # Optional, apply false colorization
-            if 1: frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
-            frameDisp = np.ascontiguousarray(frameDisp)
-
-        # Blend when both received
-        if frameRgb is not None and frameDisp is not None:
-            filenameRGB = f"rgb_image_{i}.png"
-            filenameDepth=f"depth_image_{i}.png"
-            cv2.imwrite(filenameRGB, frameRgb)
-            print("Saved RGB image")
-            cv2.imwrite(filenameDepth, frameDisp)
-            print("Saved depth map")
-            frameRgb = None
-            frameDisp = None
-            '''

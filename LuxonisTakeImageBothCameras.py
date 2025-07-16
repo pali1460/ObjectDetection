@@ -91,12 +91,14 @@ stereo.setDepthAlign(rgbCamSocket)
 
 # Linking
 camRgb.video.link(rgbOut.input)
+left.out.link(stereo.left)
+right.out.link(stereo.right)
+stereo.disparity.link(disparityOut.input)
+
+# Use stereo passthroughs for valid left/right output
 stereo.syncedLeft.link(leftOut.input)
 stereo.syncedRight.link(rightOut.input)
 
-stereo.disparity.link(disparityOut.input)
-left.out.link(leftOut.input)   # Link left camera output
-right.out.link(rightOut.input) # Link right camera output
 
 camRgb.setMeshSource(dai.CameraProperties.WarpMeshSource.CALIBRATION)
 if alpha is not None:
@@ -180,12 +182,17 @@ with device:
             print(f"Saved {filenameRGB}")
             savedRGB = True
 
-        # Saving left camera image
         if frameLeft is not None and not savedLeft:
-            filenameLeft = f"images/left_image.png"
-            cv2.imwrite(filenameLeft, frameLeft)
-            print(f"Saved {filenameLeft}")
-            savedLeft = True
+            # Ensure the frame has meaningful pixel values
+            min_val = np.min(frameLeft)
+            max_val = np.max(frameLeft)
+
+            if max_val - min_val > 10:  # Arbitrary threshold to reject all-white frames
+                filenameLeft = f"images/left_image.png"
+                cv2.imwrite(filenameLeft, frameLeft)
+                print(f"Saved {filenameLeft}")
+                savedLeft = True
+
 
         # Saving right camera image
         if frameRight is not None and not savedRight:

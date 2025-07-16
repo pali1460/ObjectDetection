@@ -105,15 +105,6 @@ with device:
     frameRgb = None
     frameDisp = None
 
-    # Configure windows; trackbar adjusts blending ratio of rgb/depth
-    rgbWindowName = "rgb"
-    depthWindowName = "depth"
-    blendedWindowName = "rgb-depth"
-    cv2.namedWindow(rgbWindowName)
-    cv2.namedWindow(depthWindowName)
-    cv2.namedWindow(blendedWindowName)
-    cv2.createTrackbar('RGB Weight %', blendedWindowName, int(rgbWeight*100), 100, updateBlendWeights)
-
     while True:
         latestPacket = {}
         latestPacket["rgb"] = None
@@ -127,7 +118,6 @@ with device:
 
         if latestPacket["rgb"] is not None:
             frameRgb = latestPacket["rgb"].getCvFrame()
-            cv2.imshow(rgbWindowName, frameRgb)
 
         if latestPacket["disp"] is not None:
             frameDisp = latestPacket["disp"].getFrame()
@@ -137,8 +127,8 @@ with device:
             # Optional, apply false colorization
             if 1: frameDisp = cv2.applyColorMap(frameDisp, cv2.COLORMAP_HOT)
             frameDisp = np.ascontiguousarray(frameDisp)
-            cv2.imshow(depthWindowName, frameDisp)
 
+        # Wait for depth frames to load
         time.sleep(2)
 
         # Blend when both received
@@ -147,7 +137,6 @@ with device:
             if len(frameDisp.shape) < 3:
                 frameDisp = cv2.cvtColor(frameDisp, cv2.COLOR_GRAY2BGR)
             blended = cv2.addWeighted(frameRgb, rgbWeight, frameDisp, depthWeight, 0)
-            cv2.imshow(blendedWindowName, blended)
 
         if frameDisp is not None:
             filenameDisparityHeatmap = f"images/depth_image.png"
@@ -160,6 +149,7 @@ with device:
             cv2.imwrite(filenameRGB, frameRgb)
             print(f"Saved {filenameRGB}")
             savedRGB = True
+            print("Saved images")
 
         if savedRGB and savedDepth:
             break

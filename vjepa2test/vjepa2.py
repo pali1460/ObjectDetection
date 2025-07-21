@@ -4,7 +4,7 @@ from collections import deque
 from transformers import AutoVideoProcessor, VJEPA2ForVideoClassification
 
 # --- Configuration ---
-NUM_FRAMES = 64  # Number of consecutive frames to consider
+NUM_FRAMES = 16  # Number of consecutive frames to consider
 FRAME_WIDTH, FRAME_HEIGHT = 256, 256  # Model expects 256x256 input
 
 # --- Initialize Webcam Display ---
@@ -33,20 +33,38 @@ def preprocess_clip(frames):
     return processor(resized, return_tensors="pt").to("cuda")
 
 text_to_display = "No Predictions Yet"
-
+padding = 5
+background_color = (0, 0, 0)  # Black background
+org = (50, 50) # (x, y) coordinates
+font = cv2.FONT_HERSHEY_SIMPLEX
+font_scale = 0.5
+color = (255, 255, 255) # White Text
+thickness = 1
 # --- Main Loop ---
 try:
     while True:
         ret, frame = cap.read()
         if not ret:
             print("Error: Failed to capture frame")
-            break
-        org = (50, 50) # (x, y) coordinates
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        color = (0, 255, 0) # Green color (BGR)
-        thickness = 1
-        cv2.putText(frame, text_to_display, org, font, font_scale, color, thickness)
+            break        
+        
+        # Calculate text size
+        (text_width, text_height), baseline = cv2.getTextSize(text_to_display, font, font_scale, thickness)
+
+        # Calculate rectangle coordinates
+        # The rectangle's top-left corner
+        rect_x1 = 50 - padding
+        rect_y1 = 400 - text_height - padding
+        # The rectangle's bottom-right corner
+        rect_x2 = 50 + text_width + padding
+        rect_y2 = 400 + baseline + padding
+
+        # Draw the filled rectangle (background)
+        cv2.rectangle(frame, (rect_x1, rect_y1), (rect_x2, rect_y2), background_color, -1)
+
+        # Draw the text on top of the background
+        cv2.putText(frame, text_to_display, (50, 400), font, font_scale, color, thickness)
+
         # Display current frame
         cv2.imshow("Display", frame)
 
@@ -62,7 +80,7 @@ try:
             predicted_label = logits.argmax(-1).item()
             label = model.config.id2label[predicted_label]
             print(f"Prediction: {label}")
-            text_to_display = "Preduction: " + label
+            text_to_display = "Prediction: " + label
             frame_buffer.clear()
 
         # Exit on 'q' key press

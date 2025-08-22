@@ -5,9 +5,6 @@ import time
 import shutil
 import sys
 
-
-dataset_path = "e1_with_grayscale.hdf5"
-
 filename = sys.argv[1]
 
 folder_path = "/home/nataliya/Downloads/luxonis_test_cup_data/data"

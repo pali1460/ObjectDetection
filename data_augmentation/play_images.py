@@ -3,11 +3,16 @@ import cv2
 import h5py
 import time
 import shutil
+import sys
 
 
 dataset_path = "e1_with_grayscale.hdf5"
 
-dataset_path = "/home/nataliya/ObjectDetection/data_augmentation/episode_20250812_154133_RAISEBRIGHTNESS.hdf5"
+filename = sys.argv[1]
+
+folder_path = "/home/nataliya/Downloads/luxonis_test_cup_data/data"
+
+dataset_path = folder_path + "/" + filename
 
 with h5py.File(dataset_path, 'r') as root:
     actions = root['/action'][()]
